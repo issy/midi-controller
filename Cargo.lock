@@ -527,6 +527,7 @@ dependencies = [
  "bt-hci 0.2.1",
  "critical-section",
  "embassy-executor",
+ "embassy-futures",
  "embassy-time",
  "embedded-io",
  "embedded-io-async",

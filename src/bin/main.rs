@@ -44,7 +44,9 @@ async fn main(spawner: Spawner) {
         esp_wifi::init(timer1.timer0, rng).expect("Failed to initialize WIFI/BLE controller");
     // find more examples https://github.com/embassy-rs/trouble/tree/main/examples/esp32
     let transport = BleConnector::new(&wifi_init, peripherals.BT);
-    let _ble_controller = ExternalController::<_, 20>::new(transport);
+    let ble_controller = ExternalController::<_, 20>::new(transport);
+
+    
 
     // TODO: Spawn some tasks
     let _ = spawner;
