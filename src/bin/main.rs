@@ -44,7 +44,7 @@ async fn main(spawner: Spawner) {
     let _spawner = spawner;
 
     loop {
-        delay.delay_millis(1_000);
         led.toggle();
+        delay.delay_millis(1_000);
     }
 }
