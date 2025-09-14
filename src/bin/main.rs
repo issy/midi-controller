@@ -10,7 +10,7 @@ use embassy_executor::Spawner;
 use esp_hal::{clock::CpuClock, delay::Delay};
 use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
-use esp_hal::gpio::{Input, InputConfig, Level, Output, OutputConfig, Pin, Pull};
+use esp_hal::gpio::{Input, InputConfig, Level, Output, OutputConfig, Pin};
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -24,6 +24,33 @@ extern crate alloc;
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
 esp_bootloader_esp_idf::esp_app_desc!();
 
+struct Button<'a> {
+    input_pin: Input<'a>,
+    is_pressed: bool,
+}
+
+impl<'a> Button<'a> {
+    pub fn new(input: Input<'a>) -> Self {
+        Button {
+            input_pin: input,
+            is_pressed: false
+        }
+    }
+
+    pub fn check(&mut self) -> bool {
+        let currently_pressed = self.input_pin.is_high();
+        if self.is_pressed == currently_pressed {
+            return false;
+        }
+        self.is_pressed = currently_pressed;
+        if currently_pressed {
+            return false;
+        } else {
+            return true;
+        }
+    }
+}
+
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     // generator version: 0.5.0
@@ -36,15 +63,19 @@ async fn main(spawner: Spawner) {
     let timer0 = TimerGroup::new(peripherals.TIMG1);
     esp_hal_embassy::init(timer0.timer0);
 
-    let _button = Input::new(peripherals.GPIO5.degrade(), InputConfig::default().with_pull(Pull::Up));   // e.g. GPIO15 as button
-    let mut led = Output::new(peripherals.GPIO25.degrade(), Level::Low, OutputConfig::default().with_pull(Pull::Down));   // e.g. GPIO25 as LED
+    let mut button = Button::new(Input::new(peripherals.GPIO5.degrade(), InputConfig::default())); // e.g. GPIO5 as button
+    let mut led = Output::new(peripherals.GPIO25.degrade(), Level::Low, OutputConfig::default()); // e.g. GPIO25 as LED
 
     let delay = Delay::new();
 
     let _spawner = spawner;
 
+    println!("Started!");
+
     loop {
-        led.toggle();
-        delay.delay_millis(1_000);
+        if button.check() {
+            led.toggle();
+        }
+        delay.delay_millis(50);
     }
 }
