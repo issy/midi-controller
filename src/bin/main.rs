@@ -7,6 +7,7 @@
 )]
 
 use embassy_executor::Spawner;
+use embassy_time::{Duration, Timer};
 use esp_hal::{clock::CpuClock, delay::Delay};
 use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
@@ -51,31 +52,36 @@ impl<'a> Button<'a> {
     }
 }
 
+#[embassy_executor::task]
+async fn run() {
+    loop {
+        esp_println::println!("Hello world from embassy using esp-hal-async!");
+        Timer::after(Duration::from_millis(1_000)).await;
+    }
+}
+
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     // generator version: 0.5.0
-
-    let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
-    let peripherals = esp_hal::init(config);
+    let peripherals = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
 
     esp_alloc::heap_allocator!(size: 64 * 1024);
 
-    let timer0 = TimerGroup::new(peripherals.TIMG1);
+    let timer0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timer0.timer0);
 
     let mut button = Button::new(Input::new(peripherals.GPIO5.degrade(), InputConfig::default())); // e.g. GPIO5 as button
     let mut led = Output::new(peripherals.GPIO25.degrade(), Level::Low, OutputConfig::default()); // e.g. GPIO25 as LED
 
-    let delay = Delay::new();
-
     let _spawner = spawner;
-
-    println!("Started!");
+    spawner.spawn(run()).ok();
 
     loop {
-        if button.check() {
-            led.toggle();
-        }
-        delay.delay_millis(50);
+        // if button.check() {
+        //     led.toggle();
+        // }
+        // delay.delay_millis(50);
+        println!("Bing!");
+        Timer::after(Duration::from_millis(5_000)).await;
     }
 }
