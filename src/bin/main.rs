@@ -6,13 +6,11 @@
     holding buffers for the duration of a data transfer."
 )]
 
-use bt_hci::controller::ExternalController;
 use embassy_executor::Spawner;
-use embassy_time::{Duration, Timer};
-use esp_hal::clock::CpuClock;
+use esp_hal::{clock::CpuClock, delay::Delay};
 use esp_hal::timer::timg::TimerGroup;
-use esp_wifi::ble::controller::BleConnector;
 use esp_println::println;
+use esp_hal::gpio::{Input, InputConfig, Level, Output, OutputConfig, Pin, Pull};
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -38,25 +36,15 @@ async fn main(spawner: Spawner) {
     let timer0 = TimerGroup::new(peripherals.TIMG1);
     esp_hal_embassy::init(timer0.timer0);
 
-    let rng = esp_hal::rng::Rng::new(peripherals.RNG);
-    let timer1 = TimerGroup::new(peripherals.TIMG0);
-    let wifi_init =
-        esp_wifi::init(timer1.timer0, rng).expect("Failed to initialize WIFI/BLE controller");
-    // find more examples https://github.com/embassy-rs/trouble/tree/main/examples/esp32
-    let transport = BleConnector::new(&wifi_init, peripherals.BT);
-    let ble_controller = ExternalController::<_, 20>::new(transport);
+    let _button = Input::new(peripherals.GPIO5.degrade(), InputConfig::default().with_pull(Pull::Up));   // e.g. GPIO15 as button
+    let mut led = Output::new(peripherals.GPIO25.degrade(), Level::Low, OutputConfig::default().with_pull(Pull::Down));   // e.g. GPIO25 as LED
 
-    
+    let delay = Delay::new();
 
-    // TODO: Spawn some tasks
-    let _ = spawner;
-
-    println!("Initialised!");
+    let _spawner = spawner;
 
     loop {
-        println!("Hello world");
-        Timer::after(Duration::from_secs(1)).await;
+        delay.delay_millis(1_000);
+        led.toggle();
     }
-
-    // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-rc.0/examples/src/bin
 }
