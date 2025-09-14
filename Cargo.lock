@@ -497,6 +497,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "esp-build"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b94a4b8d74e7cc7baabcca5b2277b41877e039ad9cd49959d48ef94dac7eab4b"
+dependencies = [
+ "quote",
+ "syn",
+ "termcolor",
+]
+
+[[package]]
 name = "esp-config"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -523,6 +534,7 @@ dependencies = [
  "esp-bootloader-esp-idf",
  "esp-hal",
  "esp-hal-embassy",
+ "esp-println",
  "esp-wifi",
  "static_cell",
  "trouble-host",
@@ -637,6 +649,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "189d36b8c8a752bdebec67fd02a15ebb1432feea345553749bca7ce2393cc795"
 dependencies = [
  "esp-metadata",
+]
+
+[[package]]
+name = "esp-println"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d9dd4fc40306450e432cdf104ab00c8f6bd5c4f6c77b76c5fc3024c0e2a535d"
+dependencies = [
+ "critical-section",
+ "esp-build",
+ "portable-atomic",
 ]
 
 [[package]]

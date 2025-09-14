@@ -12,9 +12,11 @@ use embassy_time::{Duration, Timer};
 use esp_hal::clock::CpuClock;
 use esp_hal::timer::timg::TimerGroup;
 use esp_wifi::ble::controller::BleConnector;
+use esp_println::println;
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
+    println!("An error has occurred! Going into panic state...");
     loop {}
 }
 
@@ -47,7 +49,10 @@ async fn main(spawner: Spawner) {
     // TODO: Spawn some tasks
     let _ = spawner;
 
+    println!("Initialised!");
+
     loop {
+        println!("Hello world");
         Timer::after(Duration::from_secs(1)).await;
     }
 
