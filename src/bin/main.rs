@@ -8,10 +8,10 @@
 
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
-use esp_hal::{clock::CpuClock, delay::Delay};
+use esp_hal::{clock::CpuClock};
 use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
-use esp_hal::gpio::{Input, InputConfig, Level, Output, OutputConfig, Pin};
+use esp_hal::gpio::{AnyPin, Input, InputConfig};
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -25,38 +25,23 @@ extern crate alloc;
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
 esp_bootloader_esp_idf::esp_app_desc!();
 
-struct Button<'a> {
-    input_pin: Input<'a>,
-    is_pressed: bool,
-}
-
-impl<'a> Button<'a> {
-    pub fn new(input: Input<'a>) -> Self {
-        Button {
-            input_pin: input,
-            is_pressed: false
-        }
-    }
-
-    pub fn check(&mut self) -> bool {
-        let currently_pressed = self.input_pin.is_high();
-        if self.is_pressed == currently_pressed {
-            return false;
-        }
-        self.is_pressed = currently_pressed;
-        if currently_pressed {
-            return false;
-        } else {
-            return true;
-        }
-    }
-}
-
 #[embassy_executor::task]
 async fn run() {
     loop {
         esp_println::println!("Hello world from embassy using esp-hal-async!");
         Timer::after(Duration::from_millis(1_000)).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn button_task(pin: AnyPin<'static>) {
+    let mut button = Input::new(pin, InputConfig::default());
+
+    loop {
+        button.wait_for_high().await;
+        println!("Button pressed");
+        button.wait_for_low().await;
+        println!("Button released");
     }
 }
 
@@ -70,17 +55,11 @@ async fn main(spawner: Spawner) {
     let timer0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timer0.timer0);
 
-    let mut button = Button::new(Input::new(peripherals.GPIO5.degrade(), InputConfig::default())); // e.g. GPIO5 as button
-    let mut led = Output::new(peripherals.GPIO25.degrade(), Level::Low, OutputConfig::default()); // e.g. GPIO25 as LED
-
     let _spawner = spawner;
     spawner.spawn(run()).ok();
+    spawner.spawn(button_task(peripherals.GPIO5.into())).ok();
 
     loop {
-        // if button.check() {
-        //     led.toggle();
-        // }
-        // delay.delay_millis(50);
         println!("Bing!");
         Timer::after(Duration::from_millis(5_000)).await;
     }
