@@ -7,17 +7,20 @@
 )]
 
 use embassy_executor::Spawner;
-use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
-use esp_hal::{clock::CpuClock};
+use esp_hal::clock::CpuClock;
+use esp_hal::gpio::{Input, InputConfig, Level, Output, OutputConfig};
 use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
-use esp_hal::gpio::{Input, InputConfig, Level, Output, OutputConfig};
 
 #[panic_handler]
 fn panic(panic_info: &core::panic::PanicInfo) -> ! {
-    println!("An error has occurred! Going into panic state... {}", panic_info.message());
+    println!(
+        "An error has occurred! Going into panic state... {}",
+        panic_info.message()
+    );
     loop {}
 }
 
@@ -27,45 +30,66 @@ extern crate alloc;
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
 esp_bootloader_esp_idf::esp_app_desc!();
 
-static CHANNEL: Channel<CriticalSectionRawMutex, u8, 16> = Channel::new();
+const BUTTONS_AMOUNT: usize = 6;
 
-#[embassy_executor::task(pool_size = 6)]
-async fn button_task(mut button: Input<'static>, mut led: Output<'static>, id: u8) {
+enum ChannelEvent {
+    ActivateScene(u8),
+    MomentaryPressed(u8),
+    MomentaryReleased(u8),
+}
+
+static CHANNEL: Channel<CriticalSectionRawMutex, ChannelEvent, 16> = Channel::new();
+
+#[embassy_executor::task(pool_size = BUTTONS_AMOUNT)]
+async fn button_task(mut button: Input<'static>, id: u8) {
     loop {
         button.wait_for_rising_edge().await;
-        println!("Button pressed");
-        let _ = CHANNEL.send(id).await;
+        // Button pressed
         Timer::after(Duration::from_millis(50)).await;
 
         button.wait_for_falling_edge().await;
-        println!("Button released");
-        let _ = CHANNEL.send(id).await;
-        led.toggle();
+        // Button released
+        let _ = CHANNEL.send(ChannelEvent::ActivateScene(id)).await;
         Timer::after(Duration::from_millis(50)).await;
     }
 }
 
-#[embassy_executor::task(pool_size = 6)]
-async fn button_task_momentary(mut button: Input<'static>, mut led: Output<'static>, id: u8) {
+#[embassy_executor::task(pool_size = BUTTONS_AMOUNT)]
+async fn button_task_momentary(mut button: Input<'static>, id: u8) {
     loop {
         button.wait_for_rising_edge().await;
         println!("Button pressed");
-        led.set_high();
+        let _ = CHANNEL.send(ChannelEvent::MomentaryPressed(id)).await;
         Timer::after(Duration::from_millis(50)).await;
 
         button.wait_for_falling_edge().await;
         println!("Button released");
-        let _ = CHANNEL.send(id).await;
-        led.set_low();
+        let _ = CHANNEL.send(ChannelEvent::MomentaryReleased(id)).await;
         Timer::after(Duration::from_millis(50)).await;
     }
 }
 
 #[embassy_executor::task]
-async fn logger_task() {
+async fn led_watchdog(mut leds: [Output<'static>; 6]) {
     loop {
-        let id = CHANNEL.receive().await;
-        println!("Button {} pressed/released", id);
+        let event = CHANNEL.receive().await;
+        match event {
+            ChannelEvent::ActivateScene(id) => {
+                if id < leds.len() as u8 {
+                    leds.iter_mut()
+                        .enumerate()
+                        .for_each(|(i, led)| match i as u8 == id {
+                            true => {
+                                led.set_high();
+                            }
+                            false => {
+                                led.set_low();
+                            }
+                        })
+                }
+            }
+            _ => {}
+        }
     }
 }
 
@@ -78,15 +102,53 @@ async fn main(spawner: Spawner) {
     let timer0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timer0.timer0);
 
-    // Initialize buttons
-    spawner.spawn(button_task_momentary(Input::new(peripherals.GPIO16, InputConfig::default()), Output::new(peripherals.GPIO14, Level::Low, OutputConfig::default()), 1)).unwrap();
-    spawner.spawn(button_task_momentary(Input::new(peripherals.GPIO17, InputConfig::default()), Output::new(peripherals.GPIO27, Level::Low, OutputConfig::default()), 2)).unwrap();
-    spawner.spawn(button_task(Input::new(peripherals.GPIO5, InputConfig::default()), Output::new(peripherals.GPIO26, Level::Low, OutputConfig::default()), 3)).unwrap();
-    spawner.spawn(button_task(Input::new(peripherals.GPIO18, InputConfig::default()), Output::new(peripherals.GPIO25, Level::Low, OutputConfig::default()), 4)).unwrap();
-    spawner.spawn(button_task(Input::new(peripherals.GPIO19, InputConfig::default()), Output::new(peripherals.GPIO33, Level::Low, OutputConfig::default()), 5)).unwrap();
-    spawner.spawn(button_task(Input::new(peripherals.GPIO21, InputConfig::default()), Output::new(peripherals.GPIO32, Level::Low, OutputConfig::default()), 6)).unwrap();
+    let leds = [
+        Output::new(peripherals.GPIO14, Level::Low, OutputConfig::default()),
+        Output::new(peripherals.GPIO27, Level::Low, OutputConfig::default()),
+        Output::new(peripherals.GPIO26, Level::Low, OutputConfig::default()),
+        Output::new(peripherals.GPIO25, Level::Low, OutputConfig::default()),
+        Output::new(peripherals.GPIO33, Level::Low, OutputConfig::default()),
+        Output::new(peripherals.GPIO32, Level::Low, OutputConfig::default()),
+    ];
+    spawner.spawn(led_watchdog(leds)).unwrap();
 
-    spawner.spawn(logger_task()).unwrap();
+    // Initialize buttons
+    spawner
+        .spawn(button_task(
+            Input::new(peripherals.GPIO16, InputConfig::default()),
+            1,
+        ))
+        .unwrap();
+    spawner
+        .spawn(button_task(
+            Input::new(peripherals.GPIO17, InputConfig::default()),
+            2,
+        ))
+        .unwrap();
+    spawner
+        .spawn(button_task(
+            Input::new(peripherals.GPIO5, InputConfig::default()),
+            3,
+        ))
+        .unwrap();
+    spawner
+        .spawn(button_task(
+            Input::new(peripherals.GPIO18, InputConfig::default()),
+            4,
+        ))
+        .unwrap();
+    spawner
+        .spawn(button_task(
+            Input::new(peripherals.GPIO19, InputConfig::default()),
+            5,
+        ))
+        .unwrap();
+    spawner
+        .spawn(button_task(
+            Input::new(peripherals.GPIO21, InputConfig::default()),
+            6,
+        ))
+        .unwrap();
 
     println!("Started.");
 }
