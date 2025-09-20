@@ -54,7 +54,6 @@ async fn logger_task() {
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
-    // generator version: 0.5.0
     let peripherals = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
 
     esp_alloc::heap_allocator!(size: 64 * 1024);
@@ -72,8 +71,10 @@ async fn main(spawner: Spawner) {
 
     spawner.spawn(logger_task()).unwrap();
 
-    loop {
-        Timer::after(Duration::from_secs(1)).await;
-        println!("Main loop tick");
-    }
+    println!("Started.");
+
+    // loop {
+    //     Timer::after(Duration::from_secs(1)).await;
+    //     println!("Main loop tick");
+    // }
 }
