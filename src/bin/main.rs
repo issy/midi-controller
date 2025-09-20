@@ -116,37 +116,37 @@ async fn main(spawner: Spawner) {
     spawner
         .spawn(button_task(
             Input::new(peripherals.GPIO16, InputConfig::default()),
-            1,
+            0,
         ))
         .unwrap();
     spawner
         .spawn(button_task(
             Input::new(peripherals.GPIO17, InputConfig::default()),
-            2,
+            1,
         ))
         .unwrap();
     spawner
         .spawn(button_task(
             Input::new(peripherals.GPIO5, InputConfig::default()),
-            3,
+            2,
         ))
         .unwrap();
     spawner
         .spawn(button_task(
             Input::new(peripherals.GPIO18, InputConfig::default()),
-            4,
+            3,
         ))
         .unwrap();
     spawner
         .spawn(button_task(
             Input::new(peripherals.GPIO19, InputConfig::default()),
-            5,
+            4,
         ))
         .unwrap();
     spawner
         .spawn(button_task(
             Input::new(peripherals.GPIO21, InputConfig::default()),
-            6,
+            5,
         ))
         .unwrap();
 
