@@ -33,15 +33,21 @@ esp_bootloader_esp_idf::esp_app_desc!();
 const BUTTONS_AMOUNT: usize = 6;
 
 enum ChannelEvent {
-    ActivateScene(u8),
-    MomentaryPressed(u8),
-    MomentaryReleased(u8),
+    ActivateScene { button_id: u8 },
+    MomentaryPressed { button_id: u8 },
+    MomentaryReleased { button_id: u8 },
+}
+
+// TODO: Include MIDI message types in here
+enum ButtonConfiguration {
+    MomentaryButton(),
+    SceneButton(u8),
 }
 
 static CHANNEL: Channel<CriticalSectionRawMutex, ChannelEvent, 16> = Channel::new();
 
 #[embassy_executor::task(pool_size = BUTTONS_AMOUNT)]
-async fn button_task(mut button: Input<'static>, id: u8) {
+async fn button_task(mut button: Input<'static>, button_id: u8) {
     loop {
         button.wait_for_rising_edge().await;
         // Button pressed
@@ -49,22 +55,24 @@ async fn button_task(mut button: Input<'static>, id: u8) {
 
         button.wait_for_falling_edge().await;
         // Button released
-        let _ = CHANNEL.send(ChannelEvent::ActivateScene(id)).await;
+        let _ = CHANNEL
+            .send(ChannelEvent::ActivateScene { button_id })
+            .await;
         Timer::after(Duration::from_millis(50)).await;
     }
 }
 
 #[embassy_executor::task(pool_size = BUTTONS_AMOUNT)]
-async fn button_task_momentary(mut button: Input<'static>, id: u8) {
+async fn button_task_momentary(mut button: Input<'static>, button_id: u8) {
     loop {
         button.wait_for_rising_edge().await;
         println!("Button pressed");
-        let _ = CHANNEL.send(ChannelEvent::MomentaryPressed(id)).await;
+        let _ = CHANNEL.send(ChannelEvent::MomentaryPressed { button_id }).await;
         Timer::after(Duration::from_millis(50)).await;
 
         button.wait_for_falling_edge().await;
         println!("Button released");
-        let _ = CHANNEL.send(ChannelEvent::MomentaryReleased(id)).await;
+        let _ = CHANNEL.send(ChannelEvent::MomentaryReleased { button_id }).await;
         Timer::after(Duration::from_millis(50)).await;
     }
 }
@@ -74,11 +82,11 @@ async fn led_watchdog(mut leds: [Output<'static>; 6]) {
     loop {
         let event = CHANNEL.receive().await;
         match event {
-            ChannelEvent::ActivateScene(id) => {
-                if id < leds.len() as u8 {
+            ChannelEvent::ActivateScene { button_id } => {
+                if button_id < leds.len() as u8 {
                     leds.iter_mut()
                         .enumerate()
-                        .for_each(|(i, led)| match i as u8 == id {
+                        .for_each(|(i, led)| match i as u8 == button_id {
                             true => {
                                 led.set_high();
                             }
