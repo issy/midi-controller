@@ -32,6 +32,7 @@ esp_bootloader_esp_idf::esp_app_desc!();
 
 const BUTTONS_AMOUNT: usize = 6;
 
+// Include MIDI message field
 enum ChannelEvent {
     ActivateScene { button_id: u8 },
     MomentaryPressed { button_id: u8 },
