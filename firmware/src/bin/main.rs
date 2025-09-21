@@ -98,25 +98,25 @@ async fn led_watchdog(mut leds: [(Output<'static>, ButtonMode); 6]) {
                     }
                     _ => (),
                 })
-            },
+            }
             ChannelEvent::MomentaryPressed { button_id } => {
                 match leds.iter_mut().find(|(_, led_mode)| match led_mode {
                     ButtonMode::Momentary { id } => *id == button_id,
-                    _ => false
+                    _ => false,
                 }) {
                     Some((led, _)) => led.set_high(),
-                    None => ()
+                    None => (),
                 }
             }
             ChannelEvent::MomentaryReleased { button_id } => {
                 match leds.iter_mut().find(|(_, led_mode)| match led_mode {
                     ButtonMode::Momentary { id } => *id == button_id,
-                    _ => false
+                    _ => false,
                 }) {
                     Some((led, _)) => led.set_low(),
-                    None => ()
+                    None => (),
                 }
-            },
+            }
         }
     }
 }
