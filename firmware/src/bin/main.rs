@@ -52,7 +52,6 @@ async fn button_task(mut button: Input<'static>, mode: ButtonMode) {
         ButtonMode::Momentary { id } => loop {
             button.wait_for_rising_edge().await;
             // Button pressed
-            println!("Button pressed: {}", id);
             CHANNEL
                 .send(ChannelEvent::MomentaryPressed { button_id: id })
                 .await;
@@ -60,7 +59,6 @@ async fn button_task(mut button: Input<'static>, mode: ButtonMode) {
 
             button.wait_for_falling_edge().await;
             // Button released
-            println!("Button released: {}", id);
             CHANNEL
                 .send(ChannelEvent::MomentaryReleased { button_id: id })
                 .await;
@@ -87,7 +85,6 @@ async fn led_watchdog(mut leds: [(Output<'static>, ButtonMode); 6]) {
         let event = CHANNEL.receive().await;
         match event {
             ChannelEvent::ActivateScene { button_id } => {
-                println!("Received ActivateScene {}", button_id);
                 if button_id >= leds.len() as u8 {
                     return;
                 }
