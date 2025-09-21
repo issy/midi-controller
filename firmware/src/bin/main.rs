@@ -68,12 +68,16 @@ async fn button_task_momentary(mut button: Input<'static>, button_id: u8) {
     loop {
         button.wait_for_rising_edge().await;
         println!("Button pressed");
-        let _ = CHANNEL.send(ChannelEvent::MomentaryPressed { button_id }).await;
+        let _ = CHANNEL
+            .send(ChannelEvent::MomentaryPressed { button_id })
+            .await;
         Timer::after(Duration::from_millis(50)).await;
 
         button.wait_for_falling_edge().await;
         println!("Button released");
-        let _ = CHANNEL.send(ChannelEvent::MomentaryReleased { button_id }).await;
+        let _ = CHANNEL
+            .send(ChannelEvent::MomentaryReleased { button_id })
+            .await;
         Timer::after(Duration::from_millis(50)).await;
     }
 }
